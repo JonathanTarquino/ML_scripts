@@ -1,0 +1,9 @@
+############################  REQUIREMENTS FOR THIS CODE
+python 3.12.7
+pip install pyradiomics
+pip install mahotas
+pip install pip pyfeats
+pip install medviz
+pip install mrmr_selection
+sklearn 1.6.1
+pandas version 2.2.2
