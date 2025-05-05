@@ -1,0 +1,233 @@
+from sklearn.model_selection import RepeatedKFold
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import svm
+from sklearn.linear_model import Lasso, LogisticRegression
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from performance import performance_values
+import matplotlib.pyplot as plt
+import numpy as np
+from mrmr import mrmr_classif,mrmr_regression
+from wilcoxon import wilcoxonFS
+from sklearn.metrics import RocCurveDisplay, auc
+from LASSO_selection import LassoFS
+
+
+def main_classifier(clfr,training_set , training_labels,testing_set,  testing_labels,options=None):
+    print(np.shape(training_set))
+    classifiers = {
+    'LDA': LinearDiscriminantAnalysis(),
+    'QDA': QuadraticDiscriminantAnalysis(),
+    'SVM': svm.SVC(kernel="linear", C=1.0),
+    'RANDOMFOREST': RandomForestClassifier(n_estimators=80)
+    }
+
+    clf = classifiers[clfr]
+    print('Your selected classifier is:', clfr,clf)
+    clf.fit(training_set, training_labels)
+    # print(training_set)
+    # print(testing_set)
+    clf_prediction = clf.predict(testing_set)
+
+    clf_scores = clf.decision_function(testing_set)
+
+    return clf_prediction, clf_scores
+
+
+def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
+                   num_top_feats=1000000,feature_idxs=[1],
+                   shuffle=1,nFolds=3,nIter=25,
+                   classbalancetestfold='equal',
+                   full_fold_info =0):
+    # INPUTS:
+                # classifier: -- options: 'LDA','QDA','SVM','RANDOMFOREST' (Default: 'LDA');
+                # classifieroptions: (optional) A dditional {...,'Name','Value'...'} parameters for your classifier. Pass in as a cell array of strings
+                # fsname -- options: 'mrmr','ttest','wilcoxon','entropy','bhattacharyya','roc','lasso_fs_binarized') (Default: 'wilcoxon')
+                # num_top_feats: -- the number of top features to select each iteration
+                # feature_idxs: (optional) vector of pre-selected set of feature indices (i.e. from pruning or anti-correlation) (Default: include all variables in data_set)
+                # shuffle: 1 for random, 0 for non-random partition (Default: 1)
+                # nFolds: Number of folds to your cross-validation (Default: 3)
+                # nIter: Number of cross-validation iterations (Default: 25)
+                # subsets: (optional) training and testing subsets for each iteration (Default: computer will generate using 'nFold')
+                # classbalancetestfold: (option) how to class balance the testing folds -- options: 'none' (default),'equal'
+                # patient_ids: (needed for augmented data, i.e. multiple slices per patient) -- M x 1 vector of unique patient identifier (an integer) from which each data_set and data_label came from
+                # osname: (optional) string for oversampling method) -- options: 'SMOTE','ADASYN','UNDERSAMPLE'
+                # remouts: (optional) string for removing outlier method -- options: 'median','mean','quartile'
+                # threshmeth: (optional) string of optimal ROC threshold method -- options: 'euclidean', 'matlab' (Default: 'euclidean')
+                # simplewhiten: (optional) logical of whether to apply simplewhitening to the data -- options: true, false (Default: true)
+                # fsprunecorr: (optional) logical of whether to applying correlation-based pruning per feature family to initial feature set before embedded feature selection -- options: true, false (Default: false)
+                #featnames:(optional) cell array of feature names for each feature in "data_set" (REQUIRED if params.fsprune = true)
+    # %
+    # % OUTPUTS:
+    # %         stats: struct containing:
+                #stats[0]: An array sized (nIter,13), where in a row each column is composed by : tn, fp, fn, tp, auc, recall, precision, specificity, sensibility, accuracy, kappa, f-score, matthew correlation coefficient
+                #stats[1] = An array sized (nIter,shape(testing_labels)[1]), where each row contains the confidence score for each observation in Testing set
+
+
+
+    # ------------------------------------ Setting data sample space -------------------------------------------------------
+    performances_stats = []
+    performances_stats = pd.DataFrame(performances_stats)
+
+    random_state = 12883823 # setting a seed to make the splitting process completely repeatible
+
+    # -------------------------------------- Data splitting -----------------------------------------------------------------------
+    rkf = RepeatedKFold(n_splits=nFolds, n_repeats=nIter, random_state=random_state)
+    rkf.get_n_splits(data_set, data_labels)
+    print(rkf, type(data_set))
+    prev_iteration = 0
+    all_FS = []
+    full_predictions = [] # variable to save predictions along folds for a single iteration
+    full_predictions = pd.DataFrame(full_predictions)
+    full_labels = []
+    full_labels = pd.DataFrame(full_labels)
+    full_FS = []
+    full_FS = pd.DataFrame(full_FS)
+    full_estimates = []
+    full_estimates = pd.DataFrame(full_estimates)
+    iter_perf = []
+    iter_perf = pd.DataFrame(iter_perf)
+    pb_estimates_it = []
+    pb_estimates_it =pd.DataFrame(pb_estimates_it)
+    full_it_labels = []
+    full_it_labels = pd.DataFrame(full_it_labels)
+    fold_labels = []
+    fold_labels = pd.DataFrame(fold_labels)
+    all_predicted_labels = []
+    all_predicted_labels = pd.DataFrame(all_predicted_labels)
+    pivotF = []
+
+    for i, (train_index, test_index) in enumerate(rkf.split(data_set)):
+
+        print(f"Fold {i} from iteration {i//nFolds}:")
+
+        # print(f"  Train: index={train_index}")
+        # print(f"  Test:  index={test_index}")
+        Train_data = data_set.iloc[train_index,:]
+        # Train_data.columns.name = None
+        Train_labels = data_labels[train_index]
+        Test_data = data_set.iloc[test_index,:]
+        Test_labels = data_labels[test_index]
+        #print(np.shape(Train_labels))
+
+        #---------------------- Feature selecction based on FSname ------------------------
+        Fselections = {
+            'mrmr': mrmr_regression,
+            # 'ttest': t_testFS,
+            'wilcoxon': wilcoxonFS,
+            'lasso_fs_binarized':LassoFS
+            }
+
+        rankFeatures = Fselections[fsname](X=Train_data,y=Train_labels,K=num_top_feats)
+        print('Selected feature selection method:',fsname,rankFeatures)
+
+
+        if fsname == 'mrmr':
+            pivotF = rankFeatures
+            for a in range(len(rankFeatures)):
+                for b in range(np.shape(Train_data)[1]):
+                    # print('***************',full_FSel[a][0],'************',Train_data.iloc[:,b].name)
+                    # print('//////',full_FSel[a],Train_data.iloc[:,b].name,all_FS)
+                    if rankFeatures[a] == Test_data.iloc[:,b].name:
+                        rankFeatures[a] = b
+
+        # print(rankFeatures)
+        # --------------------------------- Classification ------------------------------------------
+        classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels)
+
+
+        if full_fold_info == 1:
+            nFold_perf = performance_values(Test_labels,classifier_pred,classifier_score)
+            performances_stats = pd.concat([performances_stats,pd.DataFrame(nFold_perf)],axis=1)
+            pb_estimates_it = pd.concat([pb_estimates_it,pd.DataFrame(classifier_score)])
+
+            # print(performances_stats)
+
+        elif full_fold_info == 0 and prev_iteration == nFolds-1:
+            prev_iteration =0
+            # print(np.shape(full_predictions))
+            classifier_pred= np.reshape(classifier_pred,(1,len(classifier_pred)))
+            full_predictions = pd.concat([full_predictions,pd.DataFrame(classifier_pred)],axis=1)
+            # print(np.shape(full_predictions))
+            all_predicted_labels = pd.concat([all_predicted_labels,pd.DataFrame(full_predictions)],axis=0)
+            full_labels = pd.concat([full_labels,pd.DataFrame(Test_labels)])
+            print('\t End of iteration.............for iteration support :',np.shape(all_predicted_labels),'out of :',np.shape(full_labels))
+            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures)])
+            pb_estimates_it = pd.concat([pb_estimates_it,pd.DataFrame(np.reshape(classifier_score,(1,len(classifier_score))))],axis=1)
+            fold_labels =  pd.concat([fold_labels,pd.DataFrame(np.reshape(Test_labels,(1,len(Test_labels))))],axis=1)
+            full_it_labels = pd.concat([full_it_labels,pd.DataFrame(fold_labels)],axis=0)
+            full_estimates = pd.concat([full_estimates,pd.DataFrame(pb_estimates_it)],axis=0)
+            all_FS = full_FS
+
+            # if fsname == 'mrmr':
+            #     full_FSel = full_FS.values
+            #     # plt.hist(full_FS)
+            #     # plt.show()
+            #     for a in range(len(full_FS)):
+            #         for b in range(np.shape(Train_data)[1]):
+            #             # print('***************',full_FSel[a][0],'************',Train_data.iloc[:,b].name)
+            #             print('//////',full_FSel[a],Train_data.iloc[:,b].name,all_FS)
+            #             if full_FSel[a] == Test_data.iloc[:,b].name:
+            #                 full_FS[a] = b
+            #                 all_FS.append(b)
+
+            full_FS.plot.hist(bins=12, alpha=0.5)
+            plt.show()
+
+
+            full_labels = []
+            full_labels = pd.DataFrame(full_labels)
+            full_predictions = []
+            full_predictions = pd.DataFrame(full_predictions)
+            full_FS = []
+            full_FS = pd.DataFrame(full_FS)
+            pb_estimates_it = []
+            pb_estimates_it =pd.DataFrame(pb_estimates_it)
+            fold_labels = []
+            fold_labels = pd.DataFrame(fold_labels)
+
+
+
+            # print(np.mean(performances_stats.iloc[:,i-nFolds+1:i+1],axis=1),np.std(performances_stats.iloc[:,i-nFolds+1:i+1],axis=1))
+        elif full_fold_info == 0:
+            prev_iteration+=1
+            full_labels = pd.concat([full_labels,pd.DataFrame(Test_labels)])
+            classifier_pred= np.reshape(classifier_pred,(1,len(classifier_pred)))
+            # print('full Labels\n',np.shape(full_labels),np.shape(classifier_pred))
+            full_predictions = pd.concat([full_predictions,pd.DataFrame(classifier_pred)],axis=1)
+            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures)])
+            pb_estimates_it = pd.concat([pb_estimates_it,pd.DataFrame(np.reshape(classifier_score,(1,len(classifier_score))))],axis=1)
+            fold_labels =  pd.concat([fold_labels,pd.DataFrame(np.reshape(Test_labels,(1,len(Test_labels))))],axis=1)
+            print('Moving iteration in progress with a support of..............', np.shape(full_predictions),np.shape(full_labels))
+
+
+        # summary_stats = [np.mean(performances_stats,axis=1),np.std(performancconcates_stats,axis=1)]
+        # performances_stats = pd.concat([performances_stats,pd.DataFrame(np.transpose(summary_stats))],axis=1)
+        #
+        # print(np.shape(full_it_labels))
+
+    #  --------------------- Actual Classification performance computation ----------------------------
+    print('\t Computing performance metrics\n',np.shape(full_it_labels),np.shape(all_predicted_labels),np.shape(full_estimates))
+
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    for r in range(np.shape(full_estimates)[0]):
+            nFold_perf,names = performance_values(full_it_labels.iloc[r,:],all_predicted_labels.iloc[r,:],full_estimates.iloc[r,:])
+            iter_perf = pd.concat([iter_perf,pd.DataFrame(np.reshape(nFold_perf,(1,len(nFold_perf))))],axis=0)
+
+            viz = RocCurveDisplay.from_predictions(
+                full_it_labels.iloc[r,:],
+                full_estimates.iloc[r,:],
+                name=f"ROC iteration {r}",
+                alpha=0.3,
+                lw=1,
+                ax=ax,
+                )
+
+    plt.show()
+
+    return(iter_perf,full_estimates, full_it_labels,all_FS, names)
+
+
+
