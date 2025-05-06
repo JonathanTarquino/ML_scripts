@@ -41,6 +41,8 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                    classbalancetestfold='equal',
                    full_fold_info =0):
     # INPUTS:
+                # data_set: Set of features as pandas DataFrame, used to train a model a validate it in Cross validation scheme
+                # data_labels: numpy array conatinig binary labels
                 # classifier: -- options: 'LDA','QDA','SVM','RANDOMFOREST' (Default: 'LDA');
                 # classifieroptions: (optional) A dditional {...,'Name','Value'...'} parameters for your classifier. Pass in as a cell array of strings
                 # fsname -- options: 'mrmr','ttest','wilcoxon','entropy','bhattacharyya','roc','lasso_fs_binarized') (Default: 'wilcoxon')
@@ -58,6 +60,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 # simplewhiten: (optional) logical of whether to apply simplewhitening to the data -- options: true, false (Default: true)
                 # fsprunecorr: (optional) logical of whether to applying correlation-based pruning per feature family to initial feature set before embedded feature selection -- options: true, false (Default: false)
                 #featnames:(optional) cell array of feature names for each feature in "data_set" (REQUIRED if params.fsprune = true)
+                # full_fold_info
     # %
     # % OUTPUTS:
     # %         stats: struct containing:
