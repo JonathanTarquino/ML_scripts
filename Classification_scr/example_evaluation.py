@@ -11,7 +11,7 @@ from CrossValidation import main_classifier
 from performance import performance_values
 import sys
 
-## NOTE If running from a different folder  adding Folder_2/subfolder to the system path-- uncomment the next line and change the proper path
+##This test run on IRIS database, but it can be modified to run any other features. If running from a folder different than classification  adding Folder_2/subfolder to the system path-- uncomment the next line and change the proper path
 #sys.path.insert(0, '/home/amninder/Desktop/project/Folder_2/subfolder')
 
 ## load data from IRIS project .
