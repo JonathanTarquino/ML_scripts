@@ -30,7 +30,7 @@ def main_classifier(clfr,training_set , training_labels,testing_set,  testing_la
     # print(testing_set)
     clf_prediction = clf.predict(testing_set)
 
-    clf_scores = clf.decision_function(testing_set)
+    clf_scores = clf.predict_proba(testing_set)[:,1]
 
     return clf_prediction, clf_scores
 
@@ -112,7 +112,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
         Train_labels = data_labels[train_index]
         Test_data = data_set.iloc[test_index,:]
         Test_labels = data_labels[test_index]
-        #print(np.shape(Train_labels))
+        # print(np.shape(Train_labels))
 
         #---------------------- Feature selecction based on FSname ------------------------
         Fselections = {
@@ -123,7 +123,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
             }
 
         rankFeatures = Fselections[fsname](X=Train_data,y=Train_labels,K=num_top_feats)
-        print('Selected feature selection method:',fsname,rankFeatures)
+        print('Selected feature selection method:',fsname)
 
 
         if fsname == 'mrmr':
@@ -135,7 +135,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                     if rankFeatures[a] == Test_data.iloc[:,b].name:
                         rankFeatures[a] = b
 
-        # print(rankFeatures)
+        print(rankFeatures)
         # --------------------------------- Classification ------------------------------------------
         classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels)
 

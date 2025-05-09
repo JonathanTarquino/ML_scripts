@@ -17,6 +17,7 @@ def wilcoxonFS(X,y,K=1000):
     # % Code written by Jonathan Tarquino 04-2025
 
     data = X
+    print(data)
     labels = y
 
     if K > np.shape(data)[1]:
@@ -29,13 +30,14 @@ def wilcoxonFS(X,y,K=1000):
 
     for i in range(f):
         idx2rem = data.iloc[:,i].isna()
-
+        # print(data.iloc[:,i])
         idx2keep = [j for j in range(len(idx2rem)) if idx2rem.iloc[j] == False ]
         # print(idx2keep)
         tempdata = data.iloc[idx2keep,i]
         templabels = labels[idx2keep]
-        # print('------',templabels)
+        print('------',tempdata)
         resRank = stats.ranksums(tempdata.iloc[templabels==1], tempdata.iloc[templabels==-1])
+        print(i,'________________________',resRank)
         s[i] = resRank[0]
         p[i] = resRank[1]
 
@@ -47,6 +49,6 @@ def wilcoxonFS(X,y,K=1000):
     h_order = np.argsort(s)
 
     # print(p_sorted,p_order)
-    p_order = p_order[0:K]
+    p_order = p_order[0:K-1]
 
     return p_order#,p,s
