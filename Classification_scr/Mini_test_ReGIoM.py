@@ -51,26 +51,27 @@ featnames = {'sepal length','spepal width','petal length','petal width'}
 #
 ##### remove correlated features
 # print(math.ceil(0.7*np.shape(data)[1]))
-num_features = math.ceil(0.5*np.shape(data)[1]) #what percent of the features: here=0.7
-idx = [0,1,2,3,4,5,6,7,8,9,10,11,12] #but search through all available features
-correlation_factor = 0.9 # 0.999 is used in this example given  highly correlated features but it is set to 0.6 by default
-correlation_metric = 'spearman'
-set_candiF, p_vals = pick_best_uncorrelated_features(data,data_labels, idx, num_features,correlation_factor,correlation_metric)
-feature_idxs = np.unique(set_candiF) # pre-selected set of features
-
-print('wwwwwwwwwwwww',feature_idxs)
-# clear num_features idx correlation_factor correlation_metric set_candiF
-cleared_data = data.iloc[:,feature_idxs]
+####
+# num_features = math.ceil(0.5*np.shape(data)[1]) #what percent of the features: here=0.7
+# idx = [0,1,2,3,4,5,6,7,8,9,10,11,12] #but search through all available features
+# correlation_factor = 0.9 # 0.999 is used in this example given  highly correlated features but it is set to 0.6 by default
+# correlation_metric = 'spearman'
+# set_candiF, p_vals = pick_best_uncorrelated_features(data,data_labels, idx, num_features,correlation_factor,correlation_metric)
+# feature_idxs = np.unique(set_candiF) # pre-selected set of features
+#
+# print('wwwwwwwwwwwww',feature_idxs)
+# # clear num_features idx correlation_factor correlation_metric set_candiF
+# cleared_data = data.iloc[:,feature_idxs]
 scaler = StandardScaler()
-print(np.shape(cleared_data))
-print(scaler.fit(data))
+# print(np.shape(cleared_data))
+scaler.fit(data)
 
 # ----------------------------------------- DATA SPLITING (0.2 for testing, 0.8 for training) -----------------------------
-X_train, X_test, y_train, y_test = train_test_split( cleared_data, data_labels, test_size=0.3, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_size=0.3, random_state=42)
 
 print('>>>>>>>>>>>>>>>>>>>',X_train)
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 3,nIter = 5,full_fold_info = 0,fsname='wilcoxon',num_top_feats = 10)
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 3,nIter = 5,full_fold_info = 0,fsname='wilcoxon',num_top_feats = 6,with_corrPrun=False)
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
       stats[4],'\n',

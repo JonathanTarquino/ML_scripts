@@ -1,5 +1,6 @@
 from sklearn.model_selection import RepeatedKFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
+from corr_prunning import pick_best_uncorrelated_features
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import svm
 from sklearn.linear_model import Lasso, LogisticRegression
@@ -7,11 +8,13 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 from performance import performance_values
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 from mrmr import mrmr_classif,mrmr_regression
 from wilcoxon import wilcoxonFS
 from sklearn.metrics import RocCurveDisplay, auc
 from LASSO_selection import LassoFS
+import math
 
 
 def main_classifier(clfr,training_set , training_labels,testing_set,  testing_labels,options=None):
@@ -39,13 +42,13 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                    num_top_feats=1000000,feature_idxs=[1],
                    shuffle=1,nFolds=3,nIter=25,
                    classbalancetestfold='equal',
-                   full_fold_info =0):
+                   full_fold_info =0, with_corrPrun = True):
     # INPUTS:
                 # data_set: Set of features as pandas DataFrame, used to train a model a validate it in Cross validation scheme
                 # data_labels: numpy array conatinig binary labels
                 # classifier: -- options: 'LDA','QDA','SVM','RANDOMFOREST' (Default: 'LDA');
                 # classifieroptions: (optional) A dditional {...,'Name','Value'...'} parameters for your classifier. Pass in as a cell array of strings
-                # fsname -- options: 'mrmr','ttest','wilcoxon','entropy','bhattacharyya','roc','lasso_fs_binarized') (Default: 'wilcoxon')
+                # fsname -- options: 'mrmr','ttest','wilcoxon','lasso_fs_binarized') (Default: 'wilcoxon')
                 # num_top_feats: -- the number of top features to select each iteration
                 # feature_idxs: (optional) vector of pre-selected set of feature indices (i.e. from pruning or anti-correlation) (Default: include all variables in data_set)
                 # shuffle: 1 for random, 0 for non-random partition (Default: 1)
@@ -61,6 +64,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 # fsprunecorr: (optional) logical of whether to applying correlation-based pruning per feature family to initial feature set before embedded feature selection -- options: true, false (Default: false)
                 #featnames:(optional) cell array of feature names for each feature in "data_set" (REQUIRED if params.fsprune = true)
                 # full_fold_info
+                # with_corrPrun: True or False, given in order to avoid or include feature correlation filtering
     # %
     # % OUTPUTS:
     # %         stats: struct containing:
@@ -101,18 +105,36 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
     all_predicted_labels = pd.DataFrame(all_predicted_labels)
     pivotF = []
 
+
+
+    if with_corrPrun == True:
+        num_features = math.ceil(0.5*np.shape(data_set)[1]) #what percent of the features: here=0.7
+        idx = [0,1,2,3] #but search through all available features
+        correlation_factor = 0.6 # 0.999 is used in this example given  highly correlated features but it is set to 0.6 by default
+        correlation_metric = 'spearman'
+        set_candiF, p_vals = pick_best_uncorrelated_features(data_set,data_labels, idx, num_features,correlation_factor,correlation_metric)
+        feature_idxs = set_candiF
+        cleared_data = data_set.iloc[:,feature_idxs]
+
+    else:
+        cleared_data = data_set
+
+
     for i, (train_index, test_index) in enumerate(rkf.split(data_set)):
 
         print(f"Fold {i} from iteration {i//nFolds}:")
 
         # print(f"  Train: index={train_index}")
         # print(f"  Test:  index={test_index}")
-        Train_data = data_set.iloc[train_index,:]
+        Train_data = cleared_data.iloc[train_index,:]
         # Train_data.columns.name = None
         Train_labels = data_labels[train_index]
-        Test_data = data_set.iloc[test_index,:]
+        Test_data = cleared_data.iloc[test_index,:]
         Test_labels = data_labels[test_index]
         # print(np.shape(Train_labels))
+
+
+        ########################
 
         #---------------------- Feature selecction based on FSname ------------------------
         Fselections = {
@@ -135,7 +157,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                     if rankFeatures[a] == Test_data.iloc[:,b].name:
                         rankFeatures[a] = b
 
-        print(rankFeatures)
+        print('Retrieved Features:',rankFeatures)
         # --------------------------------- Classification ------------------------------------------
         classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels)
 

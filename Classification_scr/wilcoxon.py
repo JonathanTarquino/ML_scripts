@@ -47,8 +47,14 @@ def wilcoxonFS(X,y,K=1000):
     p_order = np.argsort(p)
     h_sorted = sorted(s)
     h_order = np.argsort(s)
+    print(':::::::::::',p_sorted,p_order,type(p_order),K)
+    if len(p_order)>1:
+        if K==1:
+            p_order_l = p_order[0:K]
+            print(p_order_l)
+        else:
+            p_order_l = p_order[0:K-1]
+            print(p_order_l)
 
-    # print(p_sorted,p_order)
-    p_order = p_order[0:K-1]
-
-    return p_order#,p,s
+    print(':::::::::::',p_sorted,p_order_l)
+    return p_order_l#,p,s

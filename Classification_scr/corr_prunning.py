@@ -68,8 +68,7 @@ def pick_best_uncorrelated_features(data,classes,idx_pool,num_features=100000000
     for i in range(np.shape(pd_data)[1]):
         if len(pd.unique(pd_data.iloc[:,i])) <= math.floor(0.1*np.shape(data)[0]):
             idxs2keep = [w for w in idxs2keep if w != i]
-            # print('ffffffffffaaaaaaaaaaaaaaaaaaiiiiiiiiiilllllllllll',pd_data.iloc[:,i])
-            # pd_data = pd_data.drop([i],axis=1)
+
 
     # print('----------------------------',idxs2keep)
     #pd_data = pd_data.dropna(axis=1)
@@ -99,20 +98,20 @@ def pick_best_uncorrelated_features(data,classes,idx_pool,num_features=100000000
     copy_pvals = p_values
 
     set_mostdisF = [idx_agree[keepIdx]] # keep the most discriminative feature according to statistical test
-    print('8888888888',set_mostdisF,correlation_factor)
+    # print('8888888888',set_mostdisF,correlation_factor)
     RHO = pd_data.corr(method = correlation_metric) #np.corrcoef(pd_data[:,idx_pool],'Type',correlation_metric) #how correlated are the rest of the features with this feature?
     print(keepIdx, type(RHO))
     print(RHO.iloc[:,keepIdx])
     correlated = np.where(np.abs(RHO.iloc[keepIdx,:])>correlation_factor)[0] #identify the features which are correlated
     print('===================================================================================================================================',correlated)
     idx_agree = np.delete(idx_agree, correlated-1)  # remove these features from our pool
-    print(p_values)
+    # print(p_values)
     p_values = np.delete(p_values, correlated-1)
-    print(idx_agree,idx_pool,'\n',p_values)
-    print('------------<',set_mostdisF)
+    # print(idx_agree,idx_pool,'\n',p_values)
+    # print('------------<',set_mostdisF)
     # ITERATE
 
-    while len(set_mostdisF)<num_features and len(idx_agree)>0: #and now repeat this scheme for the rest of the feature pool...
+    while len(set_mostdisF)<num_features and len(idx_agree)>1: #and now repeat this scheme for the rest of the feature pool...
 
         keepIdx = np.argmin(p_values)
         print('init',keepIdx,set_mostdisF,idx_agree)
