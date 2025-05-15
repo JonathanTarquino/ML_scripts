@@ -153,7 +153,7 @@ def pick_best_uncorrelated_features(data,classes,idx_pool,num_features=100000000
       print(f'Too many correlated features. Only able to return {len(np.unique(set_mostdisF))} num_features.')
 
     # print('XXXXXXXXXXX',set_mostdisF)
-    set_mostdisF = sorted(set_mostdisF)
+    set_mostdisF = sorted(np.unique(set_mostdisF))
     copy_pvals = [copy_pvals[t] for t in set_mostdisF]
     print(set_mostdisF,copy_pvals)
 

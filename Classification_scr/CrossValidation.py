@@ -22,7 +22,7 @@ def main_classifier(clfr,training_set , training_labels,testing_set,  testing_la
     classifiers = {
     'LDA': LinearDiscriminantAnalysis(),
     'QDA': QuadraticDiscriminantAnalysis(),
-    'SVM': svm.SVC(kernel="linear", C=1.0),
+    'SVM': svm.SVC(kernel="linear", C=1.0,probability=True),
     'RANDOMFOREST': RandomForestClassifier(n_estimators=80)
     }
 

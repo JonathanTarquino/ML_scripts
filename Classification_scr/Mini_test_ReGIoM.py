@@ -40,7 +40,7 @@ print('0000000000',np.shape(data_labels))
 
 # Set evaluation parameters
 classifier='RANDOMFOREST';
-fsname='wilcoxon';
+fsname='mrmr';
 num_top_feats=4;
 shuffle = 1;
 n = 3;
@@ -71,7 +71,7 @@ X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_siz
 
 print('>>>>>>>>>>>>>>>>>>>',X_train)
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 3,nIter = 5,full_fold_info = 0,fsname='wilcoxon',num_top_feats = 6,with_corrPrun=False)
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 3,nIter = 5,full_fold_info = 0,fsname=fsname,num_top_feats = 5,with_corrPrun=False)
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
       stats[4],'\n',
