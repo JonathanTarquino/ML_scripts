@@ -96,6 +96,7 @@ def pick_best_uncorrelated_features(data,classes,idx_pool,num_features=100000000
 
 
     copy_pvals = p_values
+    copy_idx_agree = idx_agree
 
     set_mostdisF = [idx_agree[keepIdx]] # keep the most discriminative feature according to statistical test
     # print('8888888888',set_mostdisF,correlation_factor)
@@ -153,8 +154,17 @@ def pick_best_uncorrelated_features(data,classes,idx_pool,num_features=100000000
       print(f'Too many correlated features. Only able to return {len(np.unique(set_mostdisF))} num_features.')
 
     # print('XXXXXXXXXXX',set_mostdisF)
+    # set_mostdisF = sorted(np.unique(set_mostdisF))
+    # copy_pvals = [copy_pvals[t] for t in set_mostdisF]
+
+
+    # Create a mapping of original indices to p-values
+    pvals_dict = dict(zip(copy_idx_agree,copy_pvals))
+
+    # When creating final result, use the mapping to get correct p-values
     set_mostdisF = sorted(np.unique(set_mostdisF))
-    copy_pvals = [copy_pvals[t] for t in set_mostdisF]
+    copy_pvals = [pvals_dict[idx] for idx in set_mostdisF if idx in pvals_dict]
+
     print(set_mostdisF,copy_pvals)
 
     return set_mostdisF,copy_pvals
