@@ -277,7 +277,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 alpha=0.3,
                 lw=1,
                 ax=ax,
-                plot_chance_level = True
+                plot_chance_level = False
                 )
             interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
             interp_tpr[0] = 0.0

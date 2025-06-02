@@ -43,7 +43,7 @@ data_labels = np.where(y=='Iris-virginica',1,-1)
 
 # Set evaluation parameters
 classifier='LDA';
-fsname='wilcoxon';
+fsname='mrmr';
 num_top_feats=4;
 shuffle = 1;
 n = 3;
@@ -72,7 +72,7 @@ featnames = {'sepal length','spepal width','petal length','petal width'}
 X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_size=0.2, random_state=42)
 
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 2,nIter = 2,full_fold_info = 0,fsname='wilcoxon',num_top_feats = 2,with_corrPrun= False)
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 2,nIter = 4,full_fold_info = 0,fsname=fsname,num_top_feats = 3,with_corrPrun= False)
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
       stats[4],'\n',
