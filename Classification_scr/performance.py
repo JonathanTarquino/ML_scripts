@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 
 def performance_values(testing_labels,predictions,scores,targetclass_name=None):
+    # This function provide some performance metrics for a given unknown model (unknown for this function), including AUC, recall, precision, specificity, sensibility, accuracy, kappa, and F1-score, matthew correlation coefficient-MCC based on reference labels and predictions
+    # INPUTS: testing_labels: pandas series like list containing original reference labels
+    #         predictions: pandas series or DataFrame containing predicted labels
+    #         scores: pandas series containing estimated model outcome probabilities in the way 'predict_proba' build in function provides for sklearn
+
     # print((testing_labels),predictions,(scores))
     # print('pppppppppppppppp',type(testing_labels),predictions,scores)
     testing_labels = testing_labels.iloc[:]

@@ -1,3 +1,5 @@
+# Created by Jonathan Tarquino - jst104@case.edu - may 29,2025
+
 from sklearn.model_selection import RepeatedKFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
 from corr_prunning import pick_best_uncorrelated_features
@@ -17,13 +19,20 @@ from LASSO_selection import LassoFS
 import math
 
 
-def main_classifier(clfr,training_set , training_labels,testing_set,  testing_labels,options=None):
+def main_classifier(clfr,training_set ,
+                    training_labels,testing_set,
+                    testing_labels,options=None,
+                    RF_max_depth=None,
+                    RF_min_samples_split=2,
+                    RF_n_estimator=80,
+                    svm_kernel = 'linear'):
+
     print(np.shape(training_set))
     classifiers = {
     'LDA': LinearDiscriminantAnalysis(),
     'QDA': QuadraticDiscriminantAnalysis(),
-    'SVM': svm.SVC(kernel="linear", C=1.0,probability=True),
-    'RANDOMFOREST': RandomForestClassifier(n_estimators=80)
+    'SVM': svm.SVC(kernel = svm_kernel, C=1.0,probability=True),
+    'RANDOMFOREST': RandomForestClassifier(n_estimators= RF_n_estimator, min_samples_split=RF_min_samples_split, max_depth = RF_max_depth)
     }
 
     clf = classifiers[clfr]
@@ -42,7 +51,11 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                    num_top_feats=1000000,feature_idxs=[1],
                    shuffle=1,nFolds=3,nIter=25,
                    classbalancetestfold='equal',
-                   full_fold_info =0, with_corrPrun = True):
+                   full_fold_info =0, scaleFeatures = True,  with_corrPrun = True,
+                   RF_max_depth=None,
+                   RF_min_samples_split=2,
+                   RF_n_estimator=80,
+                   svm_kernel = 'linear'):
     # INPUTS:
                 # data_set: Set of features as pandas DataFrame, used to train a model a validate it in Cross validation scheme
                 # data_labels: numpy array conatinig binary labels
@@ -64,6 +77,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 # fsprunecorr: (optional) logical of whether to applying correlation-based pruning per feature family to initial feature set before embedded feature selection -- options: true, false (Default: false)
                 #featnames:(optional) cell array of feature names for each feature in "data_set" (REQUIRED if params.fsprune = true)
                 # full_fold_info
+                # scaleFeatures: Optional , to scale features (StandardScaler). By default se to True
                 # with_corrPrun: True or False, given in order to avoid or include feature correlation filtering
     # %
     # % OUTPUTS:
@@ -78,6 +92,12 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
     performances_stats = pd.DataFrame(performances_stats)
 
     random_state = 12883823 # setting a seed to make the splitting process completely repeatible
+
+    if scaleFeatures == True:
+        scaler = StandardScaler()
+        # print(np.shape(cleared_data))
+        scaler.fit(data_set)
+
 
     # -------------------------------------- Data splitting -----------------------------------------------------------------------
     rkf = RepeatedKFold(n_splits=nFolds, n_repeats=nIter, random_state=random_state)
@@ -159,7 +179,10 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
 
         print('Retrieved Features:',rankFeatures)
         # --------------------------------- Classification ------------------------------------------
-        classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels)
+        classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels,RF_max_depth=None,
+                    RF_min_samples_split=2,
+                    RF_n_estimator=80,
+                    svm_kernel = svm_kernel)
 
 
         if full_fold_info == 1:
@@ -237,9 +260,15 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
 
 
     fig, ax = plt.subplots(figsize=(6, 6))
+
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+
     for r in range(np.shape(full_estimates)[0]):
             nFold_perf,names = performance_values(full_it_labels.iloc[r,:],all_predicted_labels.iloc[r,:],full_estimates.iloc[r,:])
             iter_perf = pd.concat([iter_perf,pd.DataFrame(np.reshape(nFold_perf,(1,len(nFold_perf))))],axis=0)
+
 
             viz = RocCurveDisplay.from_predictions(
                 full_it_labels.iloc[r,:],
@@ -248,7 +277,52 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 alpha=0.3,
                 lw=1,
                 ax=ax,
+                plot_chance_level = True
                 )
+            interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+            interp_tpr[0] = 0.0
+            print('o.................................',viz.fpr)
+
+            tprs.append(interp_tpr)
+            aucs.append(viz.roc_auc)
+
+
+
+
+    #
+    mean_tpr = np.mean(tprs,axis = 0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(
+        mean_fpr,
+        mean_tpr,
+        color="b",
+        label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+        lw=2,
+        alpha=0.8,
+    )
+
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(np.minimum(mean_tpr + std_tpr, 1),1)
+    tprs_lower = np.maximum(np.maximum(mean_tpr - std_tpr, 0),0)
+    ax.fill_between(
+        mean_fpr,
+        tprs_lower,
+        tprs_upper,
+        color="grey",
+        alpha=0.2,
+        label=r"$\pm$ 1 std. dev.",
+    )
+
+    ax.set(
+        xlabel="False Positive Rate",
+        ylabel="True Positive Rate",
+        title=f"Mean ROC curve with variability\n(Positive label ",
+    )
+    ax.legend(loc="lower right")
+
 
     plt.show()
 

@@ -39,14 +39,14 @@ print('0000000000',np.shape(data_labels))
 
 
 # Set evaluation parameters
-classifier='RANDOMFOREST';
-fsname='mrmr';
-num_top_feats=4;
-shuffle = 1;
-n = 3;
-nIter = 25;
-num_top_feats = 1;
-subsets = {};
+classifier='QDA'
+fsname='wilcoxon'
+num_top_feats=4
+shuffle = 1
+n = 3
+nIter = 25
+num_top_feats = 1
+subsets = {}
 featnames = {'sepal length','spepal width','petal length','petal width'}
 #
 ##### remove correlated features
@@ -62,16 +62,16 @@ featnames = {'sepal length','spepal width','petal length','petal width'}
 # print('wwwwwwwwwwwww',feature_idxs)
 # # clear num_features idx correlation_factor correlation_metric set_candiF
 # cleared_data = data.iloc[:,feature_idxs]
-scaler = StandardScaler()
-# print(np.shape(cleared_data))
-scaler.fit(data)
+# scaler = StandardScaler()
+# # print(np.shape(cleared_data))
+# scaler.fit(data)
 
 # ----------------------------------------- DATA SPLITING (0.2 for testing, 0.8 for training) -----------------------------
 X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_size=0.3, random_state=42)
 
 print('>>>>>>>>>>>>>>>>>>>',X_train)
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 3,nIter = 5,full_fold_info = 0,fsname=fsname,num_top_feats = 5,with_corrPrun=False)
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 5,nIter = 2,full_fold_info = 0,fsname=fsname,num_top_feats = 5,with_corrPrun=False,svm_kernel ='rbf')
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
       stats[4],'\n',
@@ -97,6 +97,7 @@ viz = RocCurveDisplay.from_predictions(
     alpha=0.3,
     lw=1,
     ax=ax,
+    plot_chance_level = True
     )
 
 plt.show()

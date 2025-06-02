@@ -66,9 +66,7 @@ featnames = {'sepal length','spepal width','petal length','petal width'}
 # print(feature_idxs)
 # # clear num_features idx correlation_factor correlation_metric set_candiF
 # cleared_data = data.iloc[:,feature_idxs]
-scaler = StandardScaler()
-# print(np.shape(cleared_data))
-scaler.fit(data)
+
 
 # ----------------------------------------- DATA SPLITING (0.2 for testing, 0.8 for training) -----------------------------
 X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_size=0.2, random_state=42)
