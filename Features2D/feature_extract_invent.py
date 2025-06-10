@@ -504,7 +504,7 @@ def lte_measures(f, mask=None, l=7):
 
     if mask is None:
         mask = np.ones(f.shape)
-        print('----------',np.shape(mask))
+        # print('----------',np.shape(mask))
 
     # 1) Labels
     labels = ["LTE_LL","LTE_LE","LTE_LS","LTE_EL","LTE_EE","LTE_ES","LTE_SL","LTE_SE","LTE_SS"]
@@ -548,7 +548,7 @@ def lte_measures(f, mask=None, l=7):
     mask_c = _image_xor(mask)
     mask_conv = signal.convolve2d(mask_c, oneskernel,'valid')
     mask_conv = np.abs(np.sign(mask_conv)-1)
-    print(np.shape(mask_conv))
+    # print(np.shape(mask_conv))
 
     # 5) Calculate energy of each convolved image with each kernel: total 9
     energy = np.zeros((np.shape(mask_conv)[0],np.shape(mask_conv)[1],9),np.double)
@@ -556,7 +556,7 @@ def lte_measures(f, mask=None, l=7):
     for i in range(9):
         f_conv = signal.convolve2d(f, kernels[:,:,i], mode='valid')
         f_conv = np.multiply(f_conv,mask_conv)
-        print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',np.shape(f_conv))
+        # print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',np.shape(f_conv))
         energy[:,:,i] = f_conv
         # f_conv_mean = sum(sum(f_conv)) / area
         # energy[i] = np.sqrt(sum(sum(np.multiply((f_conv-f_conv_mean)**2,mask_conv)))/area)
@@ -574,10 +574,10 @@ def lte_measures(f, mask=None, l=7):
 
 ##############################################################################################
 
-def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options = ['raw','gray','gradient','haralick','gabor','laws','collage']):
+def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options = ['raw','gray','gradient','haralick','gabor','laws','collage'], with_stats=True):
 
   #class_options = (OPTIONAL) cell array of strings corresponding to desired feature classes:
-  #                 DEFAULT: class_options = {'raw','gray','gradient','haralick','gabor','laws','collage'};
+  #                 DEFAULT: class_options = {'raw','gray','gradient','haralick','gabor','laws','collage'}; ### still unused
   #ws_options = (OPTIONAL) array of integers corresponding to desired window levels:
   #                 DEFAULT: ws_options = [3, 5, 7, 9, 11]
 
@@ -587,6 +587,10 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
   matrixNames = pd.DataFrame(matrixNames)
   matrixFeatures = []
   matrixFeatures = pd.DataFrame(matrixFeatures)
+  statFeatures = []
+  statFeatures = pd.DataFrame(statFeatures)
+  statFeatureNames =[]
+  statFeatures = pd.DataFrame(statFeatureNames)
 
   ##RECOMMENDED: CROP IMAGE AND MASK (saves time and memory)!
   [img,mask] = boundingbox2(img_org,mask_org,np.max(ws_options))
@@ -648,13 +652,22 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
     print('Raw intensities')
     feat_vect = extract2DFeatIntensities(img, mask)
     print('Raw intensity Feature vector shape:..............\n',np.shape(feat_vect))
+    print(feat_vect)
+
+    if with_stats == True:
+      statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.mean(),feat_vect.std(),skew(feat_vect),kurtosis(feat_vect)])],axis = 1)
+      statistics = ['Mean_of_','std_of_','skew_of_','kurtosis_of_']
+
+
+
     matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis = 0)
     matrixNames = pd.concat([matrixNames,pd.DataFrame(['Raw intensity'])])
-    print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures))
+    # statFeatureNames = pd.concat([pd.DataFrame(statFeatureNames),pd.DataFrame(['Mean Raw','std Raw','skew Raw','Kurtosis Raw'])])
+    print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(statFeatures))
 
 
     #--------------Gray Level Statistics----------------%
-    print('\\n \t Extracting Gray Level Statistics:\n')
+    print('\n \t Extracting Gray Level Statistics:\n')
 
 
     for ws in ws_options:
@@ -667,8 +680,17 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
       f_names = [x+'_w'+str(ws) for x in feat_names]
       matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
       matrixNames = pd.concat([matrixNames,pd.DataFrame(f_names)],axis = 0)
-      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(matrixNames))
-      print(matrixNames)
+
+
+      if with_stats == True:
+        for f_idx in range(feat_vect.shape[1]):
+          statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                               feat_vect.iloc[:,f_idx].std(),
+                                                               skew(feat_vect.iloc[:,f_idx]),
+                                                               kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
+
+      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(matrixNames),np.shape(statFeatures))
+      print(matrixNames,'\n',statFeatureNames)
 
       # ------------------ Haralick features ------------------------------
       print('\nExtracting Haralick-based (GLCM) features:\n')
@@ -691,7 +713,14 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
       f_names = [x+'_w'+str(ws) for x in haralick_labels]
       matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
       matrixNames = pd.concat([matrixNames,pd.DataFrame(f_names)],axis = 0)
-      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures))
+      if with_stats == True:
+        for f_idx in range(feat_vect.shape[1]):
+          statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                               feat_vect.iloc[:,f_idx].std(),
+                                                               skew(feat_vect.iloc[:,f_idx]),
+                                                               kurtosis(feat_vect.iloc[:,f_idx])])])
+
+      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(statFeatures),'\n',matrixNames[1:6])
 
 
 
@@ -703,7 +732,14 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
       f_names = Laws_out[1]
       matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
       matrixNames = pd.concat([matrixNames,pd.DataFrame(f_names)],axis = 0)
-      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures))
+
+      if with_stats == True:
+        for f_idx in range(feat_vect.shape[1]):
+          statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                               feat_vect.iloc[:,f_idx].std(),
+                                                               skew(feat_vect.iloc[:,f_idx]),
+                                                               kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
+      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures), statFeatures.shape, '\n',matrixNames[3:7])
 
 
       # ---------------- Collage ------------------------------------------
@@ -716,7 +752,14 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
       f_names = [x+'_w'+str(ws) for x in coll[2]]
       matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
       matrixNames = pd.concat([matrixNames,pd.DataFrame(f_names)],axis = 0)
-      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),'\n',matrixFeatures)
+
+      if with_stats == True:
+        for f_idx in range(feat_vect.shape[1]):
+          statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                               feat_vect.iloc[:,f_idx].std(),
+                                                               skew(feat_vect.iloc[:,f_idx]),
+                                                               kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
+      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),'\n',matrixFeatures,'\n',statFeatures.shape)
 
 
       #------------- Gradient ------------------------------
@@ -729,7 +772,14 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
       # print('Gray level statistics:\n',np.shape(feat_vect),feat_vect[0:100])
       matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
       matrixNames = pd.concat([matrixNames,pd.DataFrame(f_names)],axis = 0)
-      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures))
+
+      if with_stats == True:
+        for f_idx in range(feat_vect.shape[1]):
+          statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                               feat_vect.iloc[:,f_idx].std(),
+                                                               skew(feat_vect.iloc[:,f_idx]),
+                                                               kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
+      print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures), np.shape(statFeatures))
 
 
 
@@ -739,10 +789,23 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
     feat_vect = extract2DFeatIntensities(gabor_matrix[0], mask)
     matrixFeatures = pd.concat([matrixFeatures,pd.DataFrame(feat_vect)], axis=1)
     matrixNames = pd.concat([matrixNames,pd.DataFrame(gabor_matrix[1])],axis = 0)
-    print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures))
 
-    ##--------------------------Laws texture Features --------------
-    return (matrixNames,matrixFeatures)
+    if with_stats == True:
+      for f_idx in range(feat_vect.shape[1]):
+        statFeatures = pd.concat([statFeatures,pd.DataFrame([feat_vect.iloc[:,f_idx].mean(),
+                                                              feat_vect.iloc[:,f_idx].std(),
+                                                              skew(feat_vect.iloc[:,f_idx]),
+                                                              kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
+    print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(statFeatures))
+
+    print(np.shape(matrixNames))
+    print(matrixNames)
+
+    for name in matrixNames.iloc[:,0]:
+      # print('--------->',name,[r+name for r in statistics])
+      statFeatureNames = pd.concat([pd.DataFrame(statFeatureNames),pd.DataFrame([r+name for r in statistics])])
+
+    return (matrixNames,matrixFeatures,statFeatures,statFeatureNames)
 
 
 
