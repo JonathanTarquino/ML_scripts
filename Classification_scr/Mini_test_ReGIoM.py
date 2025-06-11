@@ -39,13 +39,12 @@ print('0000000000',np.shape(data_labels))
 
 
 # Set evaluation parameters
-classifier='QDA'
+classifier='RANDOMFOREST'
 fsname='wilcoxon'
-num_top_feats=4
 shuffle = 1
-n = 3
-nIter = 25
-num_top_feats = 1
+n = 5
+nIter = 5
+num_top_feats = 6
 subsets = {}
 featnames = {'sepal length','spepal width','petal length','petal width'}
 #
@@ -71,7 +70,7 @@ X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_siz
 
 print('>>>>>>>>>>>>>>>>>>>',X_train)
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 5,nIter = 2,full_fold_info = 0,fsname=fsname,num_top_feats = 5,with_corrPrun=False,svm_kernel ='rbf')
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = n,nIter = nIter,full_fold_info = 0,fsname=fsname,num_top_feats = num_top_feats,with_corrPrun=False,svm_kernel ='linear')
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
       stats[4],'\n',

@@ -129,7 +129,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
 
     if with_corrPrun == True:
         num_features = math.ceil(0.5*np.shape(data_set)[1]) #what percent of the features: here=0.7
-        idx = [0,1,2,3] #but search through all available features
+        idx = range(np.shape(data_set)[1])#[0,1,2,3] #but search through all available features
         correlation_factor = 0.6 # 0.999 is used in this example given  highly correlated features but it is set to 0.6 by default
         correlation_metric = 'spearman'
         set_candiF, p_vals = pick_best_uncorrelated_features(data_set,data_labels, idx, num_features,correlation_factor,correlation_metric)
