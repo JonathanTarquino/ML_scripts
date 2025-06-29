@@ -9,7 +9,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from CrossValidation import main_classifier
 from performance import performance_values
+import seaborn as sns
+import os
 import sys
+
+print(os.path.abspath(__file__))
+path2include = os.path.abspath(__file__)
+folder2python = os.path.split(path2include)
+
+sys.path.append(folder2python[0])
+print(sys.path)
 
 ##This test run on IRIS database, but it can be modified to run any other features. If running from a folder different than classification  adding Folder_2/subfolder to the system path-- uncomment the next line and change the proper path
 #sys.path.insert(0, '/home/amninder/Desktop/project/Folder_2/subfolder')
@@ -42,14 +51,14 @@ data_labels = np.where(y=='Iris-virginica',1,-1)
 
 
 # Set evaluation parameters
-classifier='LDA';
+classifier='RANDOMFOREST';
 fsname='mrmr';
-num_top_feats=4;
-shuffle = 1;
-n = 3;
-nIter = 25;
-num_top_feats = 1;
-subsets = {};
+
+shuffle = 1
+n = 3
+nIter = 4
+num_top_feats = 3
+subsets = {}
 featnames = {'sepal length','spepal width','petal length','petal width'}
 #
 ##### remove correlated features
@@ -72,28 +81,51 @@ featnames = {'sepal length','spepal width','petal length','petal width'}
 X_train, X_test, y_train, y_test = train_test_split( data, data_labels, test_size=0.2, random_state=42)
 
 # %% Cross validation and trainnig performance with remaining features using 0.8 data (training split)
-stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = 2,nIter = 4,full_fold_info = 0,fsname=fsname,num_top_feats = 3,with_corrPrun= False)
+stats = nFoldCV_withFS(X_train,y_train,classifier=classifier ,nFolds = n,nIter = nIter,full_fold_info = 0,fsname=fsname,num_top_feats = num_top_feats,with_corrPrun= False)
 print('\n-------------------------------------------------------------------------------------------------------------')
 print('----------------------------------> Obtained training results ------------------------------>\n Performance\n',
-      stats[4],'\n',
+      stats[5],'\n',
       stats[0])
 
+var=stats[0]
+print(type(var),np.shape(var))
+sns.boxplot(var.iloc[:,[4,5,6,7,8,9,11]],palette ="blend:#7AB,#EDA", notch= True,showmeans=True)
+plt.show()
+
+#########################################
+
 # Getting ordered selected features from the retrieved list of hits along the repeated k-fold
-uniqueFS, countFS = np.unique(stats[3], return_counts=True)
-# print('@@@@@@@@@@@@@',uniqueFS,countFS)
-org_idx = np.argsort(countFS)
-org_uniqueFS = uniqueFS[org_idx]
-org_countFS = countFS[org_idx]
-# print('***********************',org_uniqueFS,org_countFS)
+print(stats[1],stats[2])
+print(stats[3])
+SelectedFeat = stats[3]
+# SelectedFeat = SelectedFeat
+print(SelectedFeat, SelectedFeat.shape, stats[4])
+plt.barh(SelectedFeat,stats[4])
+plt.show()
 
 # Using best features to perform a final evaluation
 
-testing_results = main_classifier(classifier, X_train.iloc[:,org_uniqueFS], y_train, X_test.iloc[:,org_uniqueFS], y_test)
+testing_results = main_classifier(classifier, X_train.iloc[:,SelectedFeat], y_train, X_test.iloc[:,SelectedFeat], y_test)
 # print('>>>>>>>>>>>>>>>>>>>>>>',np.shape(testing_results[0]),np.shape(testing_results[1]))
 
 st = performance_values(pd.DataFrame(y_test), pd.DataFrame(testing_results[0]), pd.DataFrame(testing_results[1]))
 
 print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> OBTAINED TESTING PERFORMANCE: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+
+print(stats[4])
+print(np.reshape(st[0],(1,len(st[0]))))
+
+# # -------------------- if you want to download performance results uncomment the next lines
+# path_to_output = 'Home/Documents/project' # change path
+# TrainPerf = pd.DataFrame(stats[0])
+# perfNames = pd.DataFrame(stats[4])
+# TestPerf = pd.DataFrame(np.reshape(st[0],(1,len(st[0]))))
+# print(TrainPerf)
+# print(TestPerf)
+# TrainPerf.to_csv(path_to_output+'/training_performance.csv')
+# perfNames.to_csv(path_to_output+'/performance_metric_names.csv')
+# TestPerf.to_csv(path_to_output+'/testing_performance.csv')
+
 print(stats[4])
 print(np.reshape(st[0],(1,len(st[0]))))
 

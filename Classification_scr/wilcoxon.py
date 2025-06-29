@@ -35,9 +35,9 @@ def wilcoxonFS(X,y,K=1000):
         # print(idx2keep)
         tempdata = data.iloc[idx2keep,i]
         templabels = labels[idx2keep]
-        print('------',tempdata)
+        # print('------',tempdata)
         resRank = stats.ranksums(tempdata.iloc[templabels==1], tempdata.iloc[templabels==-1])
-        print(i,'________________________',resRank)
+        # print(i,'________________________',resRank)
         s[i] = resRank[0]
         p[i] = resRank[1]
 
@@ -47,7 +47,7 @@ def wilcoxonFS(X,y,K=1000):
     p_order = np.argsort(p)
     h_sorted = sorted(s)
     h_order = np.argsort(s)
-    print(':::::::::::',p_sorted,p_order,len(p_order),K)
+    # print(':::::::::::',p_sorted,p_order,len(p_order),K)
     if len(p_order)>=1:
         if K==1:
             p_order_l = p_order
@@ -57,4 +57,4 @@ def wilcoxonFS(X,y,K=1000):
             print(p_order_l)
 
     print(':::::::::::',p_sorted,p_order_l)
-    return p_order_l#,p,s
+    return p_order_l#, p_sorted

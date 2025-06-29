@@ -1,6 +1,6 @@
 # Created by Jonathan Tarquino - jst104@case.edu - may 29,2025
 
-from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
 from corr_prunning import pick_best_uncorrelated_features
 from sklearn.ensemble import RandomForestClassifier
@@ -51,16 +51,17 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                    num_top_feats=1000000,feature_idxs=[1],
                    shuffle=1,nFolds=3,nIter=25,
                    classbalancetestfold='equal',
+                   featnames = None,
                    full_fold_info =0, scaleFeatures = True,  with_corrPrun = True,
                    RF_max_depth=None,
                    RF_min_samples_split=2,
                    RF_n_estimator=80,
-                   svm_kernel = 'linear'):
+                   svm_kernel = 'linear',correlation_factor=0.6):
     # INPUTS:
                 # data_set: Set of features as pandas DataFrame, used to train a model a validate it in Cross validation scheme
                 # data_labels: numpy array conatinig binary labels
                 # classifier: -- options: 'LDA','QDA','SVM','RANDOMFOREST' (Default: 'LDA');
-                # classifieroptions: (optional) A dditional {...,'Name','Value'...'} parameters for your classifier. Pass in as a cell array of strings
+                # classifieroptions: (Not working optional) A dditional {...,'Name','Value'...'} parameters for your classifier. Pass in as a cell array of strings
                 # fsname -- options: 'mrmr','ttest','wilcoxon','lasso_fs_binarized') (Default: 'wilcoxon')
                 # num_top_feats: -- the number of top features to select each iteration
                 # feature_idxs: (optional) vector of pre-selected set of feature indices (i.e. from pruning or anti-correlation) (Default: include all variables in data_set)
@@ -72,8 +73,8 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 # patient_ids: (needed for augmented data, i.e. multiple slices per patient) -- M x 1 vector of unique patient identifier (an integer) from which each data_set and data_label came from
                 # osname: (optional) string for oversampling method) -- options: 'SMOTE','ADASYN','UNDERSAMPLE'
                 # remouts: (optional) string for removing outlier method -- options: 'median','mean','quartile'
-                # threshmeth: (optional) string of optimal ROC threshold method -- options: 'euclidean', 'matlab' (Default: 'euclidean')
-                # simplewhiten: (optional) logical of whether to apply simplewhitening to the data -- options: true, false (Default: true)
+                # threshmeth: (not working option) string of optimal ROC threshold method -- options: 'euclidean', 'matlab' (Default: 'euclidean')
+                # simplewhiten: (Not working optional) logical of whether to apply simplewhitening to the data -- options: true, false (Default: true)
                 # fsprunecorr: (optional) logical of whether to applying correlation-based pruning per feature family to initial feature set before embedded feature selection -- options: true, false (Default: false)
                 #featnames:(optional) cell array of feature names for each feature in "data_set" (REQUIRED if params.fsprune = true)
                 # full_fold_info
@@ -81,9 +82,11 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
                 # with_corrPrun: True or False, given in order to avoid or include feature correlation filtering
     # %
     # % OUTPUTS:
-    # %         stats: struct containing:
-                #stats[0]: An array sized (nIter,13), where in a row each column is composed by : tn, fp, fn, tp, auc, recall, precision, specificity, sensibility, accuracy, kappa, f-score, matthew correlation coefficient
-                #stats[1] = An array sized (nIter,shape(testing_labels)[1]), where each row contains the confidence score for each observation in Testing set
+    #           Single numpu array structure contatining multiple pandas Dataframes as follow:
+    # %         iter_perf: data frame contatining all performance values
+    #                       (12 columns namely 'tn', 'fp', 'fn', 'tp', 'auc_p', 'recall', 'Precision', 'Specificity', 'Sensibility', ...
+    #                       'Accuracy', 'kappa', 'Fscore', 'matthew correlation coefficient-MCC'] ) along multiple iterations (each row for single iteration performance)
+    #           full_estimates: Each row provide classifier scores (predict_proba), along all folds in a single iteration, full_it_labels,all_FS_ids, counts_FS/sum(counts_FS), names(testing_labels)[1]), where each row contains the confidence score for each observation in Testing set
 
 
 
@@ -100,7 +103,7 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
 
 
     # -------------------------------------- Data splitting -----------------------------------------------------------------------
-    rkf = RepeatedKFold(n_splits=nFolds, n_repeats=nIter, random_state=random_state)
+    rkf = RepeatedStratifiedKFold(n_splits=nFolds, n_repeats=nIter, random_state=random_state)
     rkf.get_n_splits(data_set, data_labels)
     print(rkf, type(data_set))
     prev_iteration = 0
@@ -111,6 +114,8 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
     full_labels = pd.DataFrame(full_labels)
     full_FS = []
     full_FS = pd.DataFrame(full_FS)
+    full_pvals = []
+    full_pvals = pd.DataFrame(full_pvals)
     full_estimates = []
     full_estimates = pd.DataFrame(full_estimates)
     iter_perf = []
@@ -130,26 +135,35 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
     if with_corrPrun == True:
         num_features = math.ceil(0.5*np.shape(data_set)[1]) #what percent of the features: here=0.7
         idx = range(np.shape(data_set)[1])#[0,1,2,3] #but search through all available features
-        correlation_factor = 0.6 # 0.999 is used in this example given  highly correlated features but it is set to 0.6 by default
         correlation_metric = 'spearman'
         set_candiF, p_vals = pick_best_uncorrelated_features(data_set,data_labels, idx, num_features,correlation_factor,correlation_metric)
-        feature_idxs = set_candiF
-        cleared_data = data_set.iloc[:,feature_idxs]
+
+        feature_idxs = set_candiF # Features to keep after correlation prunning
+        cleared_data = data_set.iloc[:,feature_idxs] # cleared_data corresponds to a version of features without correlation
 
     else:
+        print('\n \t No Correlation prunning performed')
         cleared_data = data_set
+        feature_idxs = np.arange(np.shape(data_set)[1])
+        p_vals = np.zeros(np.shape(data_set)[1])
 
 
-    for i, (train_index, test_index) in enumerate(rkf.split(data_set)):
+    for i, (train_index, test_index) in enumerate(rkf.split(data_set,data_labels)):
 
         print(f"Fold {i} from iteration {i//nFolds}:")
 
         # print(f"  Train: index={train_index}")
         # print(f"  Test:  index={test_index}")
-        Train_data = cleared_data.iloc[train_index,:]
+
+        Train_data = cleared_data.iloc[train_index,:] #### This is previous and functional
+        # Train_data = data_set.iloc[train_index,feature_idxs]
+
+
         # Train_data.columns.name = None
         Train_labels = data_labels[train_index]
-        Test_data = cleared_data.iloc[test_index,:]
+        Test_data = cleared_data.iloc[test_index,:] #### This is previuos and functional
+        # Test_data = data_set.iloc[test_index,feature_idxs]
+
         Test_labels = data_labels[test_index]
         # print(np.shape(Train_labels))
 
@@ -172,12 +186,15 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
             pivotF = rankFeatures
             for a in range(len(rankFeatures)):
                 for b in range(np.shape(Train_data)[1]):
-                    # print('***************',full_FSel[a][0],'************',Train_data.iloc[:,b].name)
-                    # print('//////',full_FSel[a],Train_data.iloc[:,b].name,all_FS)
+
                     if rankFeatures[a] == Test_data.iloc[:,b].name:
                         rankFeatures[a] = b
 
-        print('Retrieved Features:',rankFeatures)
+        print('\n \t Retrieved Features:.............................................................', rankFeatures,feature_idxs, p_vals)
+        print('\n \t',np.array(feature_idxs)[rankFeatures],'\n',np.array(p_vals)[rankFeatures])
+        rankFeatures2pass = np.array(feature_idxs)[rankFeatures]
+        pVals2pass = np.array(p_vals)[rankFeatures]
+
         # --------------------------------- Classification ------------------------------------------
         classifier_pred, classifier_score = main_classifier(classifier,Train_data.iloc[:,rankFeatures],Train_labels,Test_data.iloc[:,rankFeatures],Test_labels,RF_max_depth=None,
                     RF_min_samples_split=2,
@@ -201,35 +218,29 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
             all_predicted_labels = pd.concat([all_predicted_labels,pd.DataFrame(full_predictions)],axis=0)
             full_labels = pd.concat([full_labels,pd.DataFrame(Test_labels)])
             print('\t End of iteration.............for iteration support :',np.shape(all_predicted_labels),'out of :',np.shape(full_labels))
-            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures)])
+            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures2pass)])
+            full_pvals = pd.concat([full_pvals,pd.DataFrame(pVals2pass)])
             pb_estimates_it = pd.concat([pb_estimates_it,pd.DataFrame(np.reshape(classifier_score,(1,len(classifier_score))))],axis=1)
             fold_labels =  pd.concat([fold_labels,pd.DataFrame(np.reshape(Test_labels,(1,len(Test_labels))))],axis=1)
             full_it_labels = pd.concat([full_it_labels,pd.DataFrame(fold_labels)],axis=0)
             full_estimates = pd.concat([full_estimates,pd.DataFrame(pb_estimates_it)],axis=0)
             all_FS = full_FS
 
-            # if fsname == 'mrmr':
-            #     full_FSel = full_FS.values
-            #     # plt.hist(full_FS)
-            #     # plt.show()
-            #     for a in range(len(full_FS)):
-            #         for b in range(np.shape(Train_data)[1]):
-            #             # print('***************',full_FSel[a][0],'************',Train_data.iloc[:,b].name)
-            #             print('//////',full_FSel[a],Train_data.iloc[:,b].name,all_FS)
-            #             if full_FSel[a] == Test_data.iloc[:,b].name:
-            #                 full_FS[a] = b
-            #                 all_FS.append(b)
 
-            full_FS.plot.hist(bins=12, alpha=0.5)
-            plt.show()
+            # full_FS.plot.hist(bins=12, alpha=0.5)
+            # plt.show()
+
+            # plt.hist(full_FS, bins = len(full_FS))
+            # print('.........>',len(full_FS))
+            # plt.show()
 
 
             full_labels = []
             full_labels = pd.DataFrame(full_labels)
             full_predictions = []
             full_predictions = pd.DataFrame(full_predictions)
-            full_FS = []
-            full_FS = pd.DataFrame(full_FS)
+            #### full_FS = []
+            #### full_FS = pd.DataFrame(full_FS)
             pb_estimates_it = []
             pb_estimates_it =pd.DataFrame(pb_estimates_it)
             fold_labels = []
@@ -244,7 +255,8 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
             classifier_pred= np.reshape(classifier_pred,(1,len(classifier_pred)))
             # print('full Labels\n',np.shape(full_labels),np.shape(classifier_pred))
             full_predictions = pd.concat([full_predictions,pd.DataFrame(classifier_pred)],axis=1)
-            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures)])
+            full_FS = pd.concat([full_FS,pd.DataFrame(rankFeatures2pass)])
+            full_pvals = pd.concat([full_pvals,pd.DataFrame(pVals2pass)])
             pb_estimates_it = pd.concat([pb_estimates_it,pd.DataFrame(np.reshape(classifier_score,(1,len(classifier_score))))],axis=1)
             fold_labels =  pd.concat([fold_labels,pd.DataFrame(np.reshape(Test_labels,(1,len(Test_labels))))],axis=1)
             print('Moving iteration in progress with a support of..............', np.shape(full_predictions),np.shape(full_labels))
@@ -322,11 +334,28 @@ def nFoldCV_withFS(data_set,data_labels,classifier='LDA',fsname='wilcoxon',
         title=f"Mean ROC curve with variability\n(Positive label ",
     )
     ax.legend(loc="lower right")
-
-
+    print([all_FS,full_pvals])
+    print([np.unique(all_FS, return_counts=True),' \n',np.unique(full_pvals, return_counts=True)])
     plt.show()
+    #
+    all_FS_ids, counts_FS = np.unique(all_FS, return_counts=True)
 
-    return(iter_perf,full_estimates, full_it_labels,all_FS, names)
+    print('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',featnames)
+
+    if isinstance(featnames, pd.DataFrame):
+
+        all_FS = featnames.iloc[all_FS_ids].to_numpy()
+        # print(all_FS[:,1])
+        # print(type(all_FS),np.shape(all_FS_ids))
+        return(iter_perf,full_estimates, full_it_labels,all_FS[:,1], counts_FS/sum(counts_FS), names)
+
+    else:
+
+        print(type(all_FS_ids),np.shape(all_FS_ids))
+
+        return(iter_perf,full_estimates, full_it_labels,all_FS_ids, counts_FS/sum(counts_FS), names)
+
+
 
 
 
