@@ -1,6 +1,7 @@
-from feature_extract_invent import extract2DFeatureInfo
+# from feature_extract_invent import extract2DFeatureInfo
 from featureStatistics import feature_stats
 from scipy.stats import kurtosis, skew
+from feature_extract_invent import extract2DFeatureInfo
 import cv2 as cv
 import skimage
 import numpy as np
@@ -51,11 +52,11 @@ def main2Dfeature(input_image,input_mask,output_path,ax_cor_sag = 'ax',windows=[
                 threshold = skimage.filters.threshold_otsu(mk[:,:,0])
                 mask = mk[:,:,0] > threshold
                 features = extract2DFeatureInfo(ima,mask,windows)
-                print('----------->',np.shape(features[2]),features[2])
+                # print('----------->',np.shape(features[2]),features[2])
                 all_features_names = pd.DataFrame(features[0][0])
                 all_features_values = pd.concat([all_features_values,pd.DataFrame(features[1][0])])
                 all_feature_stats = pd.concat([all_feature_stats,pd.DataFrame(np.reshape(features[2][0],(1,len(features[2][0]))))])
-                print('_____________>',np.shape(all_feature_stats))
+                # print('_____________>',np.shape(all_feature_stats))
 
             print(np.shape(all_feature_stats))
 
@@ -66,11 +67,11 @@ def main2Dfeature(input_image,input_mask,output_path,ax_cor_sag = 'ax',windows=[
             threshold = skimage.filters.threshold_otsu(mk)
             mask = mk > threshold
             features = extract2DFeatureInfo(image,mask,windows)
-            print('IMPORTANT>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',features[0][0])
+            # print('IMPORTANT>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',features[0][0])
             all_features_names = pd.DataFrame(features[0][0])
             all_features_values = pd.DataFrame(features[1][0])
             all_feature_stats = pd.DataFrame(features[2][0])
-            print(features[3])
+            # print(features[3])
 
 
     # print(np.shape(features[3]))

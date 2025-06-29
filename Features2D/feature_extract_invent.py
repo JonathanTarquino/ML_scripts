@@ -560,11 +560,11 @@ def extract2DFeatureInfo(img_org,mask_org,ws_options=[3,5,7,9,11],class_options 
                                                               kurtosis(feat_vect.iloc[:,f_idx])])], axis = 0)
     print('xxxxxxxxxxxxxxxx',np.shape(matrixFeatures),np.shape(statFeatures),matrixNames)
 
-    print(np.shape(matrixNames))
+    # print(np.shape(matrixNames))
     print(matrixNames)
 
     for name in range(len(matrixNames.iloc[:,0])):
-      print('--------->',matrixNames.iloc[name,0],[r+matrixNames.iloc[name,0] for r in statistics])
+      # print('--------->',matrixNames.iloc[name,0],[r+matrixNames.iloc[name,0] for r in statistics])
       statFeatureNames = pd.concat([pd.DataFrame([r+matrixNames.iloc[name,0] for r in statistics]),pd.DataFrame(statFeatureNames)])
 
     return (matrixNames,matrixFeatures,statFeatures,statFeatureNames)
